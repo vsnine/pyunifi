@@ -55,7 +55,7 @@ class Controller(object):
     """
 
     def __init__(self, host, username, password, port=8443,
-                 version='v5', site_id='default', ssl_verify=True):
+                 version='v5', site_id='default', ssl_verify=True, timeout=6):
         """Create a Controller object.
 
         Arguments:
@@ -79,6 +79,7 @@ class Controller(object):
         self.api_url = self.url + self._construct_api_path(version)
 
         self.ssl_verify = ssl_verify
+        self.timeout = timeout
 
         if ssl_verify is False:
             warnings.simplefilter("default", category=requests.packages.
@@ -103,11 +104,11 @@ class Controller(object):
     @retry_login
     def _read(self, url, params=None):
         # Try block to handle the unifi server being offline.
-        r = self.session.get(url, params=params)
+        r = self.session.get(url, params=params, timeout=self.timeout)
         return self._jsondec(r.text)
 
     def _write(self, url, json=None):
-        r = self.session.post(url, json=json)
+        r = self.session.post(url, json=json, timeout=self.timeout)
         return self._jsondec(r.text)
 
     def _construct_api_path(self, version):
@@ -147,7 +148,7 @@ class Controller(object):
         else:
             raise APIError("Unknown controller version:", version)
 
-        r = self.session.post(login_url, params)
+        r = self.session.post(login_url, params, timeout=self.timeout)
 
         if r.status_code is not 200:
             raise APIError("Login failed - status code: %i" % r.status_code)
@@ -322,7 +323,7 @@ class Controller(object):
         """
 
         js = {'cmd': 'backup'}
-        r = self.session.post(self.api_url + 'cmd/system', json=js)
+        r = self.session.post(self.api_url + 'cmd/system', json=js, timeout=self.timeout)
 
         data = self._jsondec(r.text)
         return data[0]['url']
@@ -338,7 +339,7 @@ class Controller(object):
         if not download_path:
             download_path = self.create_backup()
 
-        r = self.session.get(self.url + download_path)
+        r = self.session.get(self.url + download_path, timeout=self.timeout)
 
         backupfile = open(target_file, 'w')
         backupfile.write(str(r.content))
